@@ -1,0 +1,83 @@
+{
+  "name": "toolium-resource-navigator",
+  "displayName": "Toolium Resource Navigator",
+  "description": "Navigate from LANG, CONF, POE, and FILE references to project resources.",
+  "version": "0.4.2",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:python",
+    "onLanguage:gherkin",
+    "onLanguage:feature"
+  ],
+  "main": "./out/extension.js",
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "test": "npm run compile && node --test test/*.test.js",
+    "package": "vsce package"
+  },
+  "contributes": {
+    "configuration": {
+      "title": "Toolium Resource Navigator",
+      "properties": {
+        "tooliumResources.resourcePaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "acceptance/resources/language"
+          ],
+          "description": "Workspace-relative resource directories."
+        },
+        "tooliumResources.configurationPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "acceptance/settings"
+          ],
+          "description": "Workspace-relative directories containing CONF JSON resources."
+        },
+        "tooliumResources.baseConfigurationFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "global-properties.json",
+            "common-properties.json"
+          ],
+          "description": "Base configuration filenames, shown before environment definitions. Private files are always excluded."
+        },
+        "tooliumResources.poeditorPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "acceptance/resources/poeditor"
+          ],
+          "description": "Workspace-relative directories containing POEditor JSON arrays."
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "jsonc-parser": "^3.3.1",
+    "yaml": "^2.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.0.0",
+    "typescript": "^5.7.0"
+  }
+}
