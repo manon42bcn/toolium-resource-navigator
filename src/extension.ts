@@ -1,19 +1,23 @@
+import { registerUsageProviders } from './usages';
+import { findResourceFiles } from './resources';
+import { completionProvider } from './completionProvider';
 import * as vscode from 'vscode';
-import { configurationFileKind, filePathSegments, referenceAt, resolveJson, resolvePoe, resolveYaml } from './resolver';
+import { filePathSegments, referenceAt, resolveJson, resolvePoe, resolveToolium, resolveYaml } from './resolver';
 
 /**
- * Registers LANG, CONF, POE, FILE, FILE_UTF8, and BASE64 definition navigation for Python and Gherkin documents.
+ * Registers LANG, CONF, POE, FILE, FILE_UTF8, BASE64, and TOOLIUM navigation and LANG/CONF completion for Python and Gherkin documents.
  * VS Code calls this entry point when the extension is activated; the context
  * owns the provider registration and disposes it when the extension unloads.
  *
  * @param context - Extension lifecycle context supplied by VS Code.
  */
 export function activate(context: vscode.ExtensionContext): void {
+  registerUsageProviders(context);
   const provider: vscode.DefinitionProvider = {
     /**
-     * Resolves the LANG, CONF, POE, FILE, FILE_UTF8, or BASE64 reference against configured resource folders
+     * Resolves the LANG, CONF, POE, FILE, FILE_UTF8, BASE64, or TOOLIUM reference against configured resource folders
      * in the source document's workspace folder. Reads current document contents
-     * and returns a FILE/FILE_UTF8/BASE64 target, exact POE matches, or the deepest LANG/CONF paths.
+     * and returns a FILE/FILE_UTF8/BASE64 target, exact POE/TOOLIUM matches, or the deepest LANG/CONF paths.
      *
      * @param document - Source document containing the reference.
      * @param position - Cursor position requested by Go to Definition.
@@ -26,10 +30,13 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!ref) return;
       const folder = vscode.workspace.getWorkspaceFolder(document.uri);
       if (!folder) return;
+      const config = vscode.workspace.getConfiguration('tooliumResources', document.uri);
       if (ref.kind === 'FILE' || ref.kind === 'FILE_UTF8' || ref.kind === 'BASE64') {
         const segments = filePathSegments(ref.value);
         if (!segments || token.isCancellationRequested) return [];
-        const targetUri = vscode.Uri.joinPath(folder.uri, 'acceptance/resources', ...segments);
+        const basePath = config.get<string>(ref.kind === 'BASE64' ? 'base64Path' : 'filePath',
+          'acceptance/resources');
+        const targetUri = vscode.Uri.joinPath(folder.uri, basePath, ...segments);
         try {
           // Stat the exact target: directories and nonexistent paths have no definition.
           const stat = await vscode.workspace.fs.stat(targetUri);
@@ -43,46 +50,28 @@ export function activate(context: vscode.ExtensionContext): void {
           return [];
         }
       }
-      const config = vscode.workspace.getConfiguration('tooliumResources', document.uri);
+      const isToolium = ref.kind === 'TOOLIUM';
       const isConf = ref.kind === 'CONF';
       const isPoe = ref.kind === 'POE';
-      const paths = isPoe
-        ? config.get<string[]>('poeditorPaths', ['acceptance/resources/poeditor'])
-        : isConf
-        ? config.get<string[]>('configurationPaths', ['acceptance/settings'])
-        : config.get<string[]>('resourcePaths', ['acceptance/resources/language']);
-      const baseFiles = config.get<string[]>('baseConfigurationFiles',
-        ['global-properties.json', 'common-properties.json']);
-      const files = new Map<string, vscode.Uri>();
-      for (const path of paths) {
-        const base = vscode.Uri.joinPath(folder.uri, path);
-        for (const uri of await vscode.workspace.findFiles(
-          new vscode.RelativePattern(base, (isConf || isPoe) ? '**/*.json' : '**/*.{yaml,yml}'),
-          '**/{node_modules,.git}/**', undefined, token)) {
-          // Reject private files by basename before opening any document.
-          const name = uri.path.slice(uri.path.lastIndexOf('/') + 1);
-          if (isConf && !configurationFileKind(name, baseFiles)) continue;
-          files.set(uri.toString(), uri);
-        }
-      }
-      const results: { depth: number; link: vscode.DefinitionLink }[] = [];
-      // Show base definitions first without implying runtime override precedence.
-      const candidates = [...files.values()].sort((a, b) => {
-        const rank = (uri: vscode.Uri) => configurationFileKind(
-          uri.path.slice(uri.path.lastIndexOf('/') + 1), baseFiles) === 'base' ? 0 : 1;
-        return (isConf ? rank(a) - rank(b) : 0) || a.toString().localeCompare(b.toString());
-      });
+      const candidates = await findResourceFiles(document.uri, ref.kind, token);
+      const results: { depth: number; priority: number; link: vscode.DefinitionLink }[] = [];
       for (const uri of candidates) {
         if (token.isCancellationRequested) return;
         try {
           const resource = await vscode.workspace.openTextDocument(uri);
+          if (token.isCancellationRequested) return;
           const text = resource.getText();
-          const resolvedPath = isPoe ? undefined : (isConf ? resolveJson : resolveYaml)(text, ref.path);
-          const matches = isPoe ? resolvePoe(text, ref.value) : resolvedPath ? [resolvedPath] : [];
+          const resolvedPath = (isPoe || isToolium) ? undefined : (isConf ? resolveJson : resolveYaml)(text, ref.path);
+          const matches = isToolium ? resolveToolium(text, ref.value)
+            : isPoe ? resolvePoe(text, ref.value, {
+              searchType: config.get<'exact' | 'contains'>('poeditorSearchType', 'exact'),
+              keyField: config.get<string>('poeditorKeyField', 'reference'),
+              prefixes: config.get<string[]>('poeditorPrefixes', [])
+            }) : resolvedPath ? [resolvedPath] : [];
           for (const resolved of matches) {
             const target = resource.positionAt(resolved.offset);
             const range = resource.getWordRangeAtPosition(target) ?? new vscode.Range(target, target);
-            results.push({ depth: resolved.depth, link: {
+            results.push({ depth: resolved.depth, priority: resolved.priority ?? 0, link: {
               originSelectionRange: new vscode.Range(position.line, ref.start, position.line, ref.end),
               targetUri: uri, targetRange: range, targetSelectionRange: range
             } });
@@ -91,13 +80,22 @@ export function activate(context: vscode.ExtensionContext): void {
           // An unreadable resource must not prevent navigation to other files.
         }
       }
+      if (token.isCancellationRequested) return;
       // Prefer the most specific match while preserving equally good duplicates.
-      const deepest = Math.max(0, ...results.map(r => r.depth));
+      if (isPoe) {
+        const firstPrefix = results.reduce((best, result) => Math.min(best, result.priority), Infinity);
+        return results.filter(r => r.priority === firstPrefix).map(r => r.link);
+      }
+      const deepest = results.reduce((best, result) => Math.max(best, result.depth), 0);
       return results.filter(r => r.depth === deepest).map(r => r.link);
     }
   };
-  context.subscriptions.push(vscode.languages.registerDefinitionProvider([
+  const selector: vscode.DocumentSelector = [
     { language: 'python' }, { language: 'gherkin' }, { language: 'feature' },
     { pattern: '**/*.feature' }
-  ], provider));
+  ];
+  context.subscriptions.push(
+    vscode.languages.registerDefinitionProvider(selector, provider),
+    vscode.languages.registerCompletionItemProvider(selector, completionProvider, ':', '.')
+  );
 }

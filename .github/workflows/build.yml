@@ -1,0 +1,75 @@
+name: Build and release
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Test and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Verify release version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          node <<'NODE'
+          const manifest = require('./package.json');
+          const lock = require('./package-lock.json');
+          const tag = process.env.GITHUB_REF_NAME;
+          if (tag !== `v${manifest.version}` || lock.version !== manifest.version
+              || lock.packages[''].version !== manifest.version) {
+            throw new Error('The tag, package.json and package-lock.json versions must match.');
+          }
+          NODE
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run package
+
+      - name: Save VSIX
+        uses: actions/upload-artifact@v7
+        with:
+          name: vsix
+          path: dist/*.vsix
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: vsix
+          path: dist
+
+      - name: Create release with tested VSIX
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: >-
+          gh release create "$RELEASE_TAG" dist/*.vsix
+          --verify-tag --generate-notes --title "$RELEASE_TAG"

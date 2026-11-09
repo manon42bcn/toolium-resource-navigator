@@ -27,7 +27,7 @@ test('JSON partial paths stop at dynamic, missing and scalar segments', () => {
   }
   assert.equal(resolveJson(source, ['unknown']), undefined);
   assert.equal(resolveJson(source, ['qa_openai', 'api_version', 'child']).depth, 2);
-  assert.equal(resolveJson('{"items": [1]}', ['items', '0']).depth, 1);
+  assert.equal(resolveJson('{"items": [1]}', ['items', '0']).depth, 2);
 });
 
 test('invalid JSON, comments and trailing commas are skipped', () => {

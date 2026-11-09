@@ -1,7 +1,10 @@
 .vscode/**
+.github/**
 src/**
 test/**
 tsconfig.json
 .gitignore
+.nvmrc
+dist/**
 
 .idea/**
