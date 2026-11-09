@@ -1,20 +1,18 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Module = require('node:module');
+const { uri, createVscode, loadWithVscode } = require('./helpers/vscode');
 
 // Exercise the registered provider through a minimal VS Code API double so that
-// discovery and the pre-read private-file exclusion are tested together.
+// discovery and matching across multiple files are tested together.
 test('POE provider returns the same reference in multiple files and uses its configured directory', async () => {
-  const uri = path => ({path, toString: () => path});
+
   const first = uri('/repo/custom/poe/a.json');
   const second = uri('/repo/custom/poe/b.json');
   const opened = [];
   const patterns = [];
   let provider;
-  class Range { constructor(...args) { this.args = args; } }
-  const vscode = {
-    Range,
-    Uri: { joinPath: (folder, path) => uri(folder.path + '/' + path) },
+
+  const vscode = createVscode({
     RelativePattern: class { constructor(base, pattern) { patterns.push({base, pattern}); } },
     workspace: {
       getWorkspaceFolder: () => ({uri: uri('/repo')}),
@@ -31,16 +29,8 @@ test('POE provider returns the same reference in multiple files and uses its con
       }
     },
     languages: { registerDefinitionProvider: (_, value) => { provider = value; return {dispose() {}}; } }
-  };
-  const originalLoad = Module._load;
-  try {
-    Module._load = function(name, ...args) {
-      return name === 'vscode' ? vscode : originalLoad.call(this, name, ...args);
-    };
-    require('../out/extension').activate({subscriptions: []});
-  } finally {
-    Module._load = originalLoad;
-  }
+  });
+  loadWithVscode('extension', vscode).activate({ subscriptions: [] });
   const links = await provider.provideDefinition({
     uri: uri('/repo/example.feature'),
     lineAt: () => ({text: '[POE:bill:bill.check.key]'})

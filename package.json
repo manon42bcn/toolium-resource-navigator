@@ -1,10 +1,11 @@
 {
   "name": "toolium-resource-navigator",
   "displayName": "Toolium Resource Navigator",
-  "description": "Navigate from LANG, CONF, POE, and FILE references to project resources.",
-  "version": "0.4.2",
+  "description": "Navigate Toolium resource placeholders and autocomplete LANG/CONF keys.",
+  "version": "0.8.0",
   "publisher": "local",
   "engines": {
+    "node": "24.x",
     "vscode": "^1.85.0"
   },
   "categories": [
@@ -13,14 +14,17 @@
   "activationEvents": [
     "onLanguage:python",
     "onLanguage:gherkin",
-    "onLanguage:feature"
+    "onLanguage:feature",
+    "onLanguage:yaml"
   ],
   "main": "./out/extension.js",
   "scripts": {
+    "vscode:prepublish": "npm run compile",
     "compile": "tsc -p .",
     "watch": "tsc -watch -p .",
     "test": "npm run compile && node --test test/*.test.js",
-    "package": "vsce package"
+    "prepackage": "node -e \"require('node:fs').mkdirSync('dist', { recursive: true })\"",
+    "package": "vsce package --out dist/"
   },
   "contributes": {
     "configuration": {
@@ -66,6 +70,64 @@
             "acceptance/resources/poeditor"
           ],
           "description": "Workspace-relative directories containing POEditor JSON arrays."
+        },
+        "tooliumResources.tooliumPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "acceptance/settings"
+          ],
+          "description": "Workspace-relative directories containing toolium.cfg and local-toolium.cfg. Only these two filenames are searched, without recursion."
+        },
+        "tooliumResources.filePath": {
+          "type": "string",
+          "default": "acceptance/resources",
+          "description": "Workspace-relative base directory for FILE and FILE_UTF8 references."
+        },
+        "tooliumResources.base64Path": {
+          "type": "string",
+          "default": "acceptance/resources",
+          "description": "Workspace-relative base directory for BASE64 references."
+        },
+        "tooliumResources.poeditorSearchType": {
+          "type": "string",
+          "default": "exact",
+          "description": "POEditor key matching mode. Toolium defaults to contains; this extension keeps exact for compatibility.",
+          "enum": [
+            "exact",
+            "contains"
+          ]
+        },
+        "tooliumResources.poeditorKeyField": {
+          "type": "string",
+          "default": "reference",
+          "description": "POEditor object field containing lookup identifiers."
+        },
+        "tooliumResources.poeditorPrefixes": {
+          "type": "array",
+          "default": [],
+          "description": "POEditor prefixes tried in order before the unprefixed identifier. The first matching prefix across all files wins.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tooliumResources.enableUsageNavigation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Go to Definition (Cmd/Ctrl+click) from language YAML keys to their usages. Find All References remains available."
+        },
+        "tooliumResources.referencePaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "acceptance/common",
+            "acceptance/features"
+          ],
+          "description": "Workspace-relative directories searched recursively for literal LANG usages in Python and feature files. An empty list disables searching."
         }
       }
     }
