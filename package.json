@@ -136,10 +136,15 @@
     "jsonc-parser": "^3.3.1",
     "yaml": "^2.8.0"
   },
+  "overrides": {
+    "@vscode/vsce": {
+      "minimatch": "^11.0.1"
+    }
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/vscode": "^1.85.0",
-    "@vscode/vsce": "^3.0.0",
+    "@vscode/vsce": "^4.1.0",
     "typescript": "^5.7.0"
   }
 }

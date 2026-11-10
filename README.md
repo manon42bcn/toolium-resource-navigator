@@ -26,6 +26,10 @@ npm test
 With another Node.js installation method, select Node.js 24.x and run `npm ci`
 and `npm test` directly.
 
+The packaging tool uses a scoped `minimatch` override to require version 11.0.1
+or newer, fixing [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249).
+Remove this override when `@vscode/vsce` declares a patched version itself.
+
 Open this folder in VS Code and press F5. In the Extension Development Host window, open the project containing your features and resources. Try Cmd/Ctrl+click or F12 on a LANG reference.
 
 ## LANG and CONF completion
