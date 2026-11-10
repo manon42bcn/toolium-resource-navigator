@@ -1,5 +1,9 @@
 # Toolium Resource Navigator
 
+Licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+
+Copyright 2026 Manuel Porras Ojeda <manuel.porras.ojeda@gmail.com>.
+
 Cmd/Ctrl+click or press F12 on `[LANG:var.foo.key]`, `[CONF:qa_openai.api_version]`, `[POE:bill:bill.check.genericCardText]`, `[FILE:path/to/file.txt]`, `[FILE_UTF8:path/to/file.txt]`, `[BASE64:path/to/file.txt]`, or `[TOOLIUM:TestExecution_environment]` in Python or `.feature` files to navigate to the corresponding resource node or file. Toolium does not need to be installed, and the extension does not execute project code.
 
 - Finds `.yaml` and `.yml` resources by their keys, regardless of the file name.
