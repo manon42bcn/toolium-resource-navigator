@@ -55,7 +55,7 @@ function navigationFixture(settings = {}, contents = {}) {
     },
     languages: {registerDefinitionProvider: (_, value) => {provider=value; return {dispose() {}};}}
   });
-  loadWithVscode('extension', vscode).activate({ subscriptions: [] });
+  provider = loadWithVscode('extension', vscode).resourceProvider;
   const resolve = value => provider.provideDefinition({uri:uri('/repo/example.feature'),
     lineAt: () => ({text:`[${value}]`})}, {line:0,character:5}, {isCancellationRequested:false});
 

@@ -26,9 +26,11 @@ function createVscode(overrides = {}) {
     },
     CompletionItem: class { constructor(label, kind) { this.label = label; this.kind = kind; } },
     CompletionItemKind: { Property: 9, Value: 12 },
+    commands: { registerCommand: disposable },
     ...overrides,
     languages: {
       registerDefinitionProvider: disposable,
+      registerHoverProvider: disposable,
       registerReferenceProvider: disposable,
       registerCompletionItemProvider: disposable,
       ...overrides.languages

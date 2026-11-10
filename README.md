@@ -4,12 +4,12 @@ Licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-
 
 Copyright 2026 Manuel Porras Ojeda <manuel.porras.ojeda@gmail.com>.
 
-Cmd/Ctrl+click or press F12 on `[LANG:var.foo.key]`, `[CONF:qa_openai.api_version]`, `[POE:bill:bill.check.genericCardText]`, `[FILE:path/to/file.txt]`, `[FILE_UTF8:path/to/file.txt]`, `[BASE64:path/to/file.txt]`, or `[TOOLIUM:TestExecution_environment]` in Python or `.feature` files to navigate to the corresponding resource node or file. Toolium does not need to be installed, and the extension does not execute project code.
+Hover and click **Open resource**, or run **Toolium: Open Resource** from the Command Palette with the cursor inside `[LANG:var.foo.key]`, `[CONF:qa_openai.api_version]`, `[POE:bill:bill.check.genericCardText]`, `[FILE:path/to/file.txt]`, `[FILE_UTF8:path/to/file.txt]`, `[BASE64:path/to/file.txt]`, or `[TOOLIUM:TestExecution_environment]` in Python or `.feature` files to navigate to the corresponding resource node or file. Toolium does not need to be installed, and the extension does not execute project code.
 
 - Finds `.yaml` and `.yml` resources by their keys, regardless of the file name.
 - LANG/CONF navigation stops at dynamic segments (`<channel>`) or missing keys.
 - LANG without an explicit language ends at the resource key; `::en` selects its `en` child.
-- When several LANG/CONF files match, returns the destinations with the deepest resolved path for VS Code to display.
+- When several LANG/CONF files match, offers the destinations with the deepest resolved path in a selector.
 - Reads the current document contents, including unsaved YAML changes. Invalid resource files are skipped.
 
 For more information about Toolium, see the [official Toolium documentation](https://toolium.readthedocs.io/en/latest/).
@@ -34,7 +34,7 @@ The packaging tool uses a scoped `minimatch` override to require version 11.0.1
 or newer, fixing [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249).
 Remove this override when `@vscode/vsce` declares a patched version itself.
 
-Open this folder in VS Code and press F5. In the Extension Development Host window, open the project containing your features and resources. Try Cmd/Ctrl+click or F12 on a LANG reference.
+Open this folder in VS Code and press F5. In the Extension Development Host window, open the project containing your features and resources. Try hovering over a LANG reference and clicking **Open resource**.
 
 ## LANG and CONF completion
 
@@ -112,11 +112,11 @@ The option names below all use the `tooliumResources.` prefix.
 | `poeditorSearchType` | `"exact"` | POE matching mode: `exact` or `contains`, both case-sensitive. |
 | `poeditorKeyField` | `"reference"` | POEditor object field containing the identifier to match. |
 | `poeditorPrefixes` | `[]` | Ordered prefixes tried before the unprefixed POE identifier. The first prefix with matches across all files wins. |
-| `enableUsageNavigation` | `true` | Enable Go to Definition from a language YAML key to its LANG usages. Does not disable Find All References. |
-| `referencePaths` | `["acceptance/common", "acceptance/features"]` | Recursively search `.py` and `.feature` files for literal LANG usages of a YAML key. |
+| `enableUsageNavigation` | `true` | Enable Go to Definition from resource keys/identifiers to their usages. Does not disable Find All References. |
+| `referencePaths` | `["acceptance/common", "acceptance/features"]` | Recursively search `.py` and `.feature` files for literal LANG, CONF, POE and TOOLIUM usages. |
 
 Configured directories are relative to the workspace folder containing the source
-document. For usage searches, this is the folder containing the language YAML
+document. For usage searches, this is the folder containing the resource
 document. In multi-root workspaces, the search uses that folder as its root.
 The default directories are specific folders under `acceptance/`, not a search
 of every file under `acceptance/`.
@@ -168,7 +168,7 @@ selection. Missing or dynamic segments retain the deepest existing parent fallba
   `private.json` are always excluded by filename before their contents are opened,
   even if listed as base files. The check is case-insensitive.
 - If the key exists in multiple files, all destinations with the deepest resolved
-  path are returned, with base files ordered first. VS Code controls how they appear.
+  path are offered in a selector, with base files ordered first.
 - Dynamic or missing segments stop at the last resolved parent, as for LANG.
 - Only strict JSON is supported; invalid JSON is skipped.
 - Arrays support integer indices: `[CONF:services.0.name]` selects the first service.
@@ -337,12 +337,12 @@ Visual Studio Marketplace.
 
 ## Initial scope
 
-Files are discovered and parsed when navigation or completion is requested, without a persistent index. This keeps the implementation simple and up to date; caching can be added later for very large repositories. The extension does not interpret Examples, YAML aliases, or keys containing literal dots. LANG/CONF completion is included; hover previews are not yet implemented.
+Files are discovered and parsed when navigation or completion is requested, without a persistent index. This keeps the implementation simple and up to date; caching can be added later for very large repositories. The extension does not interpret Examples, YAML aliases, or keys containing literal dots. LANG/CONF completion is included; resource values are not previewed in hovers.
 
 ## Find language resource usages
 
 Cmd/Ctrl+click a mapping key in a configured language YAML file to navigate to
-its exact literal LANG usages. Right-click **Find All References** to list usages.
+its literal LANG usages and those of its descendants. Right-click **Find All References** to list usages.
 Only Python and `.feature` files inside the same workspace folder are searched,
 recursively under `acceptance/common` and `acceptance/features` by default.
 The search runs on demand and reads unsaved document contents.
@@ -357,6 +357,53 @@ The search runs on demand and reads unsaved document contents.
 Disable `enableUsageNavigation` to turn off Cmd/Ctrl+click usage navigation while
 keeping Find All References. Set `referencePaths` to `[]` to disable both searches.
 Place the cursor on the key, not its value. Matching uses the complete mapping
-path; explicit `::language` references are also recognized for that full path.
+path as a segment prefix. Selecting `screen.alerts` finds both `[LANG:screen.alerts]`
+and `[LANG:screen.alerts.missing]`, but not `[LANG:screen.alerts_extra]`.
+Only closed, single-line placeholders are included; explicit `::language`
+references are also recognized.
 Dynamic references, aliases, sequence entries and keys containing literal dots
 are not expanded. Multiple destinations follow VS Code's navigation settings.
+
+
+## Direct resource navigation
+
+In Python and feature files, hover over any closed supported placeholder and click
+**Open resource**, or use **Toolium: Open Resource** from the Command Palette or
+editor context menu. You can assign your own keyboard shortcut to
+`tooliumResources.openResource` in Keyboard Shortcuts.
+
+The hover only recognizes the placeholder: it does not discover, open or parse
+resource files. Resolution starts when the command runs. A single destination
+opens immediately; multiple destinations appear in a file/line picker. LANG/CONF
+retain their deepest-parent fallback for dynamic or missing segments.
+
+Placeholder navigation no longer registers a Go to Definition provider, so
+Cmd/Ctrl+click and F12 do not invoke Toolium from Python/feature placeholders.
+The direct command does not consult other extensions' definition providers.
+Other extensions can still provide their own navigation or affect editor performance.
+Reverse navigation and Find All References from resource keys remain available.
+
+
+### CONF, POE and TOOLIUM reverse searches
+
+Find All References and reverse Go to Definition also support:
+
+- **CONF:** select a property key in a public configuration JSON file to find exact
+  and descendant CONF paths. Enclosing array indices are included; equivalent
+  negative array indices are recognized. Values are not search entry points.
+- **POE:** select the string identifier value of `poeditorKeyField` (default
+  `reference`) in a POEditor JSON array. Matching uses the configured exact/contains
+  mode and prefixes. Dots and colons remain literal; there is no branch search.
+  Results identify potential uses matching this entry; runtime file/prefix precedence
+  and translation filtering are not evaluated.
+- **TOOLIUM:** select an option name in `toolium.cfg` or `local-toolium.cfg` to find
+  its uses, or a section name to find uses of its explicit options. Colon encoding
+  is recognized. Values, comments, continuation lines and inherited DEFAULT options
+  are not search entry points.
+
+Each resource must be inside its configured resource directories. CONF retains
+its public-filename restrictions; TOOLIUM checks only the two filenames directly
+inside `tooliumPaths`. JSON must be valid strict JSON. Searches use current unsaved
+contents and the same `referencePaths`, workspace boundary, cancellation behavior
+and `enableUsageNavigation` setting as LANG. Only closed, single-line placeholders
+are included. FILE/FILE_UTF8/BASE64 reverse navigation is not provided.

@@ -35,7 +35,7 @@ test('CONF provider returns base and environment definitions without opening pri
     },
     languages: { registerDefinitionProvider: (_, value) => { provider = value; return {dispose() {}}; } }
   });
-  loadWithVscode('extension', vscode).activate({ subscriptions: [] });
+  provider = loadWithVscode('extension', vscode).resourceProvider;
   const links = await provider.provideDefinition({
     uri: uri('/repo/example.feature'),
     lineAt: () => ({text: '[CONF:qa_openai.api_version]'})
@@ -87,7 +87,7 @@ for (const { kind, reference, text, files } of [
           }
         }
       });
-      loadWithVscode('extension', vscode).activate({ subscriptions: [] });
+      provider = loadWithVscode('extension', vscode).resourceProvider;
       const pending = provider.provideDefinition({
         uri: uri('/repo/example.feature'),
         lineAt: () => ({ text: `[${kind}:${reference}]` })

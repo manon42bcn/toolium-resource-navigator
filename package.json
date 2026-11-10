@@ -16,7 +16,12 @@
     "onLanguage:python",
     "onLanguage:gherkin",
     "onLanguage:feature",
-    "onLanguage:yaml"
+    "onLanguage:yaml",
+    "onLanguage:json",
+    "onLanguage:jsonc",
+    "onLanguage:ini",
+    "onLanguage:properties",
+    "onLanguage:plaintext"
   ],
   "main": "./out/extension.js",
   "scripts": {
@@ -28,6 +33,21 @@
     "package": "vsce package --out dist/"
   },
   "contributes": {
+    "commands": [
+      {
+        "command": "tooliumResources.openResource",
+        "title": "Toolium: Open Resource"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "tooliumResources.openResource",
+          "when": "editorLangId == python || editorLangId == gherkin || editorLangId == feature || resourceExtname == .feature",
+          "group": "navigation"
+        }
+      ]
+    },
     "configuration": {
       "title": "Toolium Resource Navigator",
       "properties": {
@@ -117,7 +137,7 @@
         "tooliumResources.enableUsageNavigation": {
           "type": "boolean",
           "default": true,
-          "description": "Enable Go to Definition (Cmd/Ctrl+click) from language YAML keys to their usages. Find All References remains available."
+          "description": "Enable Go to Definition (Cmd/Ctrl+click) from LANG/CONF keys, POE identifiers and TOOLIUM sections/options to their usages. Find All References remains available."
         },
         "tooliumResources.referencePaths": {
           "type": "array",
@@ -128,7 +148,7 @@
             "acceptance/common",
             "acceptance/features"
           ],
-          "description": "Workspace-relative directories searched recursively for literal LANG usages in Python and feature files. An empty list disables searching."
+          "description": "Workspace-relative directories searched recursively for literal LANG, CONF, POE and TOOLIUM usages in Python and feature files. An empty list disables searching."
         }
       }
     }

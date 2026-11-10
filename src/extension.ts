@@ -11,9 +11,7 @@ import { filePathSegments, referenceAt, resolveJson, resolvePoe, resolveToolium,
  *
  * @param context - Extension lifecycle context supplied by VS Code.
  */
-export function activate(context: vscode.ExtensionContext): void {
-  registerUsageProviders(context);
-  const provider: vscode.DefinitionProvider = {
+export const resourceProvider: vscode.DefinitionProvider = {
     /**
      * Resolves the LANG, CONF, POE, FILE, FILE_UTF8, BASE64, or TOOLIUM reference against configured resource folders
      * in the source document's workspace folder. Reads current document contents
@@ -90,12 +88,89 @@ export function activate(context: vscode.ExtensionContext): void {
       return results.filter(r => r.depth === deepest).map(r => r.link);
     }
   };
+export function activate(context: vscode.ExtensionContext): void {
+  registerUsageProviders(context);
   const selector: vscode.DocumentSelector = [
     { language: 'python' }, { language: 'gherkin' }, { language: 'feature' },
     { pattern: '**/*.feature' }
   ];
   context.subscriptions.push(
-    vscode.languages.registerDefinitionProvider(selector, provider),
+    vscode.commands.registerCommand('tooliumResources.openResource', openResource),
+    vscode.languages.registerHoverProvider(selector, {
+      provideHover(document, position) {
+        const ref = referenceAt(document.lineAt(position.line).text, position.character);
+        if (!ref || !vscode.workspace.getWorkspaceFolder(document.uri)) return;
+        const args = encodeURIComponent(JSON.stringify([{
+          uri: document.uri.toString(), line: position.line, character: ref.start,
+          version: document.version, text: document.lineAt(position.line).text.slice(ref.start, ref.end)
+        }]));
+        const markdown = new vscode.MarkdownString(
+          `[Open resource](command:tooliumResources.openResource?${args})`);
+        markdown.isTrusted = { enabledCommands: ['tooliumResources.openResource'] };
+        return new vscode.Hover(markdown,
+          new vscode.Range(position.line, ref.start, position.line, ref.end));
+      }
+    }),
     vscode.languages.registerCompletionItemProvider(selector, completionProvider, ':', '.')
   );
+}
+
+interface ResourceRequest {
+  uri: string;
+  line: number;
+  character: number;
+  version: number;
+  text: string;
+}
+
+/** Resolve directly: never invoke VS Code's aggregated definition commands. */
+async function openResource(request?: ResourceRequest): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  let document: vscode.TextDocument;
+  let position: vscode.Position;
+  if (request !== undefined) {
+    if (!request || typeof request.uri !== 'string' || typeof request.text !== 'string'
+      || !Number.isInteger(request.line) || !Number.isInteger(request.character)
+      || request.line < 0 || request.character < 0) return;
+    // Hover links only operate on the still-active, unchanged source document.
+    if (!editor || editor.document.uri.toString() !== request.uri
+      || editor.document.version !== request.version || request.line >= editor.document.lineCount) return;
+    document = editor.document;
+    position = new vscode.Position(request.line, request.character);
+    const line = document.lineAt(position.line).text;
+    const ref = referenceAt(line, position.character);
+    if (!ref || line.slice(ref.start, ref.end) !== request.text) return;
+  } else {
+    if (!editor) return;
+    document = editor.document;
+    position = editor.selection.active;
+  }
+  if (!['python', 'gherkin', 'feature'].includes(document.languageId)
+    && !document.uri.path.endsWith('.feature')) return;
+  if (!referenceAt(document.lineAt(position.line).text, position.character)) {
+    void vscode.window.showInformationMessage('Place the cursor inside a Toolium resource placeholder.');
+    return;
+  }
+  try {
+    const links = await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification, title: 'Finding Toolium resource', cancellable: true
+    }, async (_progress, token) => {
+      const result = await resourceProvider.provideDefinition(document, position, token);
+      return token.isCancellationRequested ? undefined : result as vscode.DefinitionLink[] | undefined;
+    });
+    if (!links) return;
+    if (!links.length) {
+      void vscode.window.showInformationMessage('No matching Toolium resource found.');
+      return;
+    }
+    const selected = links.length === 1 ? links[0] : (await vscode.window.showQuickPick(
+      links.map(link => ({
+        label: vscode.workspace.asRelativePath(link.targetUri),
+        description: `Line ${(link.targetSelectionRange ?? link.targetRange).start.line + 1}`, link
+      })), { placeHolder: 'Select a Toolium resource' }))?.link;
+    if (selected) await vscode.window.showTextDocument(selected.targetUri,
+      { selection: selected.targetSelectionRange });
+  } catch {
+    void vscode.window.showErrorMessage('Unable to open the Toolium resource.');
+  }
 }
