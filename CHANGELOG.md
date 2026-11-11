@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- Keep installation, usage and configuration in the Marketplace README. Move contributor setup and release instructions to the development guide.
+
 ## 1.0.0
 
 Initial public release of Toolium Resource Navigator.
