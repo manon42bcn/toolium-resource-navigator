@@ -37,7 +37,7 @@ function fileFixture() {
     },
     languages: {registerDefinitionProvider: (_, value) => {provider = value; return {dispose() {}};}}
   });
-  loadWithVscode('extension', vscode).activate({ subscriptions: [] });
+  provider = loadWithVscode('extension', vscode).resourceProvider;
   const resolve = (value, kind = 'FILE') => provider.provideDefinition({
     uri: uri('/repo/test.feature'), lineAt: () => ({text: `[${kind}:${value}]`})
   }, {line: 0, character: 7}, {isCancellationRequested: false});

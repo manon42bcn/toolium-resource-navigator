@@ -30,7 +30,7 @@ test('POE provider returns the same reference in multiple files and uses its con
     },
     languages: { registerDefinitionProvider: (_, value) => { provider = value; return {dispose() {}}; } }
   });
-  loadWithVscode('extension', vscode).activate({ subscriptions: [] });
+  provider = loadWithVscode('extension', vscode).resourceProvider;
   const links = await provider.provideDefinition({
     uri: uri('/repo/example.feature'),
     lineAt: () => ({text: '[POE:bill:bill.check.key]'})
