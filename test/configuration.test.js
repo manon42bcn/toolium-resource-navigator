@@ -36,11 +36,9 @@ test('invalid JSON, comments and trailing commas are skipped', () => {
   }
 });
 
-test('private files are rejected even when explicitly configured as base files', () => {
-  for (const name of ['dev-private-properties.json', 'dev-private.json',
-    'private-properties.json', 'private.json', 'DEV-PRIVATE.JSON']) {
-    assert.equal(configurationFileKind(name, [name]), undefined);
-  }
+test('configuration classification is independent from configurable exclusions', () => {
+  assert.equal(configurationFileKind('private.json', ['private.json']), 'base');
+  assert.equal(configurationFileKind('dev-private-properties.json', []), 'environment');
   assert.equal(configurationFileKind('custom.json', ['custom.json']), 'base');
   assert.equal(configurationFileKind('dev-eu-properties.json', []), 'environment');
   assert.equal(configurationFileKind('unrelated.json', []), undefined);

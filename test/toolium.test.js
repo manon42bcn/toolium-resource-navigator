@@ -69,7 +69,7 @@ test('TOOLIUM provider uses only the two CFG files in default or configured work
       },
       languages: {registerDefinitionProvider: (_, value) => {provider = value; return {dispose() {}};}}
     });
-    loadWithVscode('extension', vscode).activate({ subscriptions: [] });
+    provider = loadWithVscode('extension', vscode).resourceProvider;
     const resolve = () => provider.provideDefinition({
       uri: uri('/repo/example.feature'),
       lineAt: () => ({text: '[TOOLIUM:TestExecution_environment]'})

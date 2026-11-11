@@ -2,8 +2,9 @@
   "name": "toolium-resource-navigator",
   "displayName": "Toolium Resource Navigator",
   "description": "Navigate Toolium resource placeholders and autocomplete LANG/CONF keys.",
-  "version": "0.8.0",
-  "publisher": "local",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "publisher": "manon42bcn",
   "engines": {
     "node": "24.x",
     "vscode": "^1.85.0"
@@ -15,7 +16,12 @@
     "onLanguage:python",
     "onLanguage:gherkin",
     "onLanguage:feature",
-    "onLanguage:yaml"
+    "onLanguage:yaml",
+    "onLanguage:json",
+    "onLanguage:jsonc",
+    "onLanguage:ini",
+    "onLanguage:properties",
+    "onLanguage:plaintext"
   ],
   "main": "./out/extension.js",
   "scripts": {
@@ -27,6 +33,21 @@
     "package": "vsce package --out dist/"
   },
   "contributes": {
+    "commands": [
+      {
+        "command": "tooliumResources.openResource",
+        "title": "Toolium: Open Resource"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "tooliumResources.openResource",
+          "when": "editorLangId == python || editorLangId == gherkin || editorLangId == feature || resourceExtname == .feature",
+          "group": "navigation"
+        }
+      ]
+    },
     "configuration": {
       "title": "Toolium Resource Navigator",
       "properties": {
@@ -59,7 +80,7 @@
             "global-properties.json",
             "common-properties.json"
           ],
-          "description": "Base configuration filenames, shown before environment definitions. Private files are always excluded."
+          "description": "Base configuration filenames, shown before environment definitions. configurationExcludePatterns is applied even to these files."
         },
         "tooliumResources.poeditorPaths": {
           "type": "array",
@@ -116,7 +137,7 @@
         "tooliumResources.enableUsageNavigation": {
           "type": "boolean",
           "default": true,
-          "description": "Enable Go to Definition (Cmd/Ctrl+click) from language YAML keys to their usages. Find All References remains available."
+          "description": "Enable Go to Definition (Cmd/Ctrl+click) from LANG/CONF keys, POE identifiers and TOOLIUM sections/options to their usages. Find All References remains available."
         },
         "tooliumResources.referencePaths": {
           "type": "array",
@@ -127,19 +148,43 @@
             "acceptance/common",
             "acceptance/features"
           ],
-          "description": "Workspace-relative directories searched recursively for literal LANG usages in Python and feature files. An empty list disables searching."
+          "description": "Workspace-relative directories searched recursively for literal LANG, CONF, POE and TOOLIUM usages in Python and feature files. An empty list disables searching."
+        },
+        "tooliumResources.configurationExcludePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/private.json",
+            "**/private-properties.json",
+            "**/*-private.json",
+            "**/*-private-properties.json"
+          ],
+          "description": "Case-insensitive workspace-relative globs excluded from CONF navigation, completion and reverse searches before reading files. Patterns without / match filenames at any depth. [] disables exclusions; overrides replace defaults."
         }
       }
     }
   },
   "dependencies": {
     "jsonc-parser": "^3.3.1",
+    "minimatch": "^11.0.6",
     "yaml": "^2.8.0"
+  },
+  "overrides": {
+    "@vscode/vsce": {
+      "minimatch": "^11.0.1"
+    }
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/vscode": "^1.85.0",
-    "@vscode/vsce": "^3.0.0",
+    "@vscode/vsce": "^4.1.0",
     "typescript": "^5.7.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/manon42bcn/toolium-resource-navigator.git"
+  },
+  "icon": "img/toolium-resource-navigator.png"
 }

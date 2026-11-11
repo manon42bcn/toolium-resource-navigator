@@ -59,6 +59,33 @@ test('usage providers deduplicate candidates and exclude files outside configure
   assert.equal((await references.provideReferences(doc, {}, {}, token)).length, 1);
 });
 
+test('branch searches include exact and descendant closed placeholders with full ranges', () => {
+  const matches = ['[LANG:screen.alerts]', '[LANG:screen.alerts.missing]',
+    '[LANG:screen.alerts.missing::en]', '[LANG:screen.alerts.other.deep]'];
+  const text = matches.join(' ') + ' [LANG:screen.alerts_extra.missing] [LANG:screen.alert]'
+    + ' [CONF:screen.alerts.missing] [LANG:Screen.alerts.missing]';
+  const offsets = usageOffsets(text, ['screen', 'alerts']);
+  assert.deepEqual(offsets.map(({ start, end }) => text.slice(start, end)), matches);
+  assert.equal(usageOffsets(text, ['screen']).length, 6);
+});
+
+test('branch searches require closed single-line placeholders and treat keys literally', () => {
+  const text = '[LANG:screen.alerts.missing\n[LANG:screen.alerts.other] '
+    + '[LANG:screen.alerts.[CONTEXT:key]] [LANG:screen.alerts.unfinished';
+  assert.deepEqual(usageOffsets(text, ['screen', 'alerts'])
+    .map(({ start, end }) => text.slice(start, end)), ['[LANG:screen.alerts.other]']);
+  assert.equal(usageOffsets('[LANG:screen.alerts.missing\n]', ['screen', 'alerts']).length, 0);
+  assert.equal(usageOffsets('[LANG:a+b.child] [LANG:aaab.child]', ['a+b']).length, 1);
+  assert.deepEqual(usageOffsets('[LANG:a.b]', []), []);
+});
+
+test('Find All References and usage navigation search the branch selected in YAML', async () => {
+  const { definition, references } = usageFixture();
+  const parent = { ...doc, offsetAt: () => source.indexOf('errors') };
+  assert.equal((await references.provideReferences(parent, {}, {}, token)).length, 2);
+  assert.equal((await definition.provideDefinition(parent, {}, token)).length, 2);
+});
+
 test('disabling usage navigation leaves Find All References available', async () => {
   const { definition, references } = usageFixture({ enableUsageNavigation: false });
   assert.deepEqual(await definition.provideDefinition(doc, {}, token), []);

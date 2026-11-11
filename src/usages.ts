@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { isMap, isScalar, parseDocument } from 'yaml';
 import { referenceAt } from './resolver';
 import { configuredBases } from './paths';
+import { resourceUsageMatcher, type UsageMatcher } from './usageTargets';
 
 /** Returns a literal mapping path only when the cursor is on its key. */
 export function yamlKeyAt(text: string, offset: number): string[] | undefined {
@@ -22,14 +23,18 @@ export function yamlKeyAt(text: string, offset: number): string[] | undefined {
   return walk(doc.contents, []);
 }
 
-/** Exact LANG uses, including the explicit-language syntax supported by navigation. */
+/** Closed LANG uses of a key or its descendants, compared by literal path segments. */
 export function usageOffsets(text: string, path: string[]): { start: number; end: number }[] {
+  if (!path.length) return [];
+  return matchingUsageOffsets(text, ref => ref.kind === 'LANG' && ref.path.length >= path.length
+    && path.every((key, i) => key === ref.path[i]));
+}
+
+export function matchingUsageOffsets(text: string, matcher: UsageMatcher): { start: number; end: number }[] {
   const results: { start: number; end: number }[] = [];
-  for (const match of text.matchAll(/\[LANG:[^\]\r\n]+\]/g)) {
+  for (const match of text.matchAll(/\[(?:LANG|CONF|POE|TOOLIUM):[^\[\]\r\n]+\]/g)) {
     const ref = referenceAt(match[0], 0);
-    if (ref && ref.path.length === path.length && ref.path.every((key, i) => key === path[i])) {
-      results.push({ start: match.index!, end: match.index! + match[0].length });
-    }
+    if (ref && matcher(ref)) results.push({ start: match.index!, end: match.index! + match[0].length });
   }
   return results;
 }
@@ -41,15 +46,23 @@ function within(uri: vscode.Uri, base: vscode.Uri): boolean {
 
 export async function findUsages(document: vscode.TextDocument, position: vscode.Position,
   token: vscode.CancellationToken): Promise<vscode.Location[]> {
-  if (token.isCancellationRequested || !/\.ya?ml$/i.test(document.uri.path)) return [];
+  if (token.isCancellationRequested) return [];
   const folder = vscode.workspace.getWorkspaceFolder(document.uri);
   if (!folder) return [];
   const config = vscode.workspace.getConfiguration('tooliumResources', document.uri);
-  const resourceBases = configuredBases(folder.uri,
-    config.get<string[]>('resourcePaths', ['acceptance/resources/language']));
-  if (!resourceBases.some(base => within(document.uri, base))) return [];
-  const path = yamlKeyAt(document.getText(), document.offsetAt(position));
-  if (!path) return [];
+  let matcher: UsageMatcher | undefined;
+  if (/\.ya?ml$/i.test(document.uri.path)) {
+    const resourceBases = configuredBases(folder.uri,
+      config.get<string[]>('resourcePaths', ['acceptance/resources/language']));
+    if (!resourceBases.some(base => within(document.uri, base))) return [];
+    const path = yamlKeyAt(document.getText(), document.offsetAt(position));
+    if (!path) return [];
+    matcher = ref => ref.kind === 'LANG' && ref.path.length >= path.length
+      && path.every((key, i) => key === ref.path[i]);
+  } else {
+    matcher = resourceUsageMatcher(document, document.offsetAt(position), folder.uri, config);
+  }
+  if (!matcher) return [];
   const bases = configuredBases(folder.uri,
     config.get<string[]>('referencePaths', ['acceptance/common', 'acceptance/features']));
   const candidates = new Map<string, vscode.Uri>();
@@ -66,7 +79,7 @@ export async function findUsages(document: vscode.TextDocument, position: vscode
     if (token.isCancellationRequested) return [];
     try {
       const source = await vscode.workspace.openTextDocument(uri);
-      for (const match of usageOffsets(source.getText(), path)) {
+      for (const match of matchingUsageOffsets(source.getText(), matcher)) {
         results.push(new vscode.Location(uri,
           new vscode.Range(source.positionAt(match.start), source.positionAt(match.end))));
       }
@@ -78,7 +91,8 @@ export async function findUsages(document: vscode.TextDocument, position: vscode
 }
 
 export function registerUsageProviders(context: vscode.ExtensionContext): void {
-  const selector: vscode.DocumentSelector = [{ language: 'yaml' }, { pattern: '**/*.{yaml,yml}' }];
+  const selector: vscode.DocumentSelector = [{ language: 'yaml' }, { pattern: '**/*.{yaml,yml,json}' },
+    { pattern: '**/toolium.cfg' }, { pattern: '**/local-toolium.cfg' }];
   context.subscriptions.push(
     vscode.languages.registerDefinitionProvider(selector, {
       provideDefinition(document, position, token) {
