@@ -1,13 +1,14 @@
 import * as vscode from 'vscode';
 import { configurationFileKind } from './resolver';
 import { configuredBases } from './paths';
+import { configurationExcluded, defaultConfigurationExcludePatterns } from './configurationExclusions';
 
 export type ResourceKind = 'LANG' | 'CONF' | 'POE' | 'TOOLIUM';
 
 /**
  * Discovers navigation and completion resources in the source file's workspace.
- * Configured folders replace defaults. Private CONF filenames are rejected before
- * any document is opened, including private files explicitly listed as bases.
+ * Configured folders replace defaults. Excluded CONF filenames are rejected before
+ * any document is opened, including files explicitly listed as bases.
  * Results are deduplicated; CONF base files are ordered before environments.
  */
 export async function findResourceFiles(
@@ -36,7 +37,10 @@ export async function findResourceFiles(
         '**/{node_modules,.git}/**', undefined, token);
     for (const uri of discovered) {
       const name = uri.path.slice(uri.path.lastIndexOf('/') + 1);
-      if (kind === 'CONF' && !configurationFileKind(name, baseFiles)) continue;
+      if (kind === 'CONF' && (configurationExcluded(
+        uri.path.slice(folder.uri.path.replace(/\/$/, '').length + 1),
+        config.get<string[]>('configurationExcludePatterns', defaultConfigurationExcludePatterns))
+        || !configurationFileKind(name, baseFiles))) continue;
       files.set(uri.toString(), uri);
     }
   }

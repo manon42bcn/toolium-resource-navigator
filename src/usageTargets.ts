@@ -3,6 +3,7 @@ import { type Node } from 'jsonc-parser';
 import { configurationFileKind, referenceAt, resolvePoe, resolveToolium } from './resolver';
 import { jsonChild, jsonTree } from './tree';
 import { configuredBases } from './paths';
+import { configurationExcluded, defaultConfigurationExcludePatterns } from './configurationExclusions';
 
 export type UsageMatcher = (ref: NonNullable<ReturnType<typeof referenceAt>>) => boolean;
 
@@ -37,7 +38,10 @@ export function resourceUsageMatcher(document: vscode.TextDocument, offset: numb
     config.get<string[]>(setting, [fallback])).some(base => within(document.uri, base));
   const name = document.uri.path.slice(document.uri.path.lastIndexOf('/') + 1);
   if (/\.json$/i.test(name)) {
-    const isConf = inBases('configurationPaths', 'acceptance/settings') && configurationFileKind(name,
+    const isConf = inBases('configurationPaths', 'acceptance/settings')
+      && !configurationExcluded(document.uri.path.slice(folder.path.replace(/\/$/, '').length + 1),
+        config.get<string[]>('configurationExcludePatterns', defaultConfigurationExcludePatterns))
+      && configurationFileKind(name,
       config.get<string[]>('baseConfigurationFiles', ['global-properties.json', 'common-properties.json']));
     const isPoe = inBases('poeditorPaths', 'acceptance/resources/poeditor');
     if (!isConf && !isPoe) return;

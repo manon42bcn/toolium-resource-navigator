@@ -2,9 +2,9 @@
   "name": "toolium-resource-navigator",
   "displayName": "Toolium Resource Navigator",
   "description": "Navigate Toolium resource placeholders and autocomplete LANG/CONF keys.",
-  "version": "0.8.1-dev.0",
+  "version": "1.0.0",
   "license": "Apache-2.0",
-  "publisher": "local",
+  "publisher": "manon42bcn",
   "engines": {
     "node": "24.x",
     "vscode": "^1.85.0"
@@ -80,7 +80,7 @@
             "global-properties.json",
             "common-properties.json"
           ],
-          "description": "Base configuration filenames, shown before environment definitions. Private files are always excluded."
+          "description": "Base configuration filenames, shown before environment definitions. configurationExcludePatterns is applied even to these files."
         },
         "tooliumResources.poeditorPaths": {
           "type": "array",
@@ -149,12 +149,26 @@
             "acceptance/features"
           ],
           "description": "Workspace-relative directories searched recursively for literal LANG, CONF, POE and TOOLIUM usages in Python and feature files. An empty list disables searching."
+        },
+        "tooliumResources.configurationExcludePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/private.json",
+            "**/private-properties.json",
+            "**/*-private.json",
+            "**/*-private-properties.json"
+          ],
+          "description": "Case-insensitive workspace-relative globs excluded from CONF navigation, completion and reverse searches before reading files. Patterns without / match filenames at any depth. [] disables exclusions; overrides replace defaults."
         }
       }
     }
   },
   "dependencies": {
     "jsonc-parser": "^3.3.1",
+    "minimatch": "^11.0.6",
     "yaml": "^2.8.0"
   },
   "overrides": {
@@ -167,5 +181,10 @@
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^4.1.0",
     "typescript": "^5.7.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/manon42bcn/toolium-resource-navigator.git"
+  },
+  "icon": "img/toolium-resource-navigator.png"
 }

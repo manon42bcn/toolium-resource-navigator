@@ -1,3 +1,4 @@
+import { registerPlaceholderDecorations } from './placeholderDecorations';
 import { registerUsageProviders } from './usages';
 import { findResourceFiles } from './resources';
 import { completionProvider } from './completionProvider';
@@ -94,6 +95,7 @@ export function activate(context: vscode.ExtensionContext): void {
     { language: 'python' }, { language: 'gherkin' }, { language: 'feature' },
     { pattern: '**/*.feature' }
   ];
+  registerPlaceholderDecorations(context, selector);
   context.subscriptions.push(
     vscode.commands.registerCommand('tooliumResources.openResource', openResource),
     vscode.languages.registerHoverProvider(selector, {

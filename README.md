@@ -52,7 +52,7 @@ Placeholders do not need a closing `]` while editing.
 | `[CONF:services.` | Child keys, or nonnegative array indices |
 | `[CONF:services.0.` | Keys inside the first array element |
 
-Completion uses the same configured folders and private-file exclusions as
+Completion uses the same configured folders and configurable file exclusions as
 navigation. Identical labels from several files are combined into one suggestion,
 with workspace-relative source paths shown in its details. Resource values are not
 displayed by completion. Unsaved resource edits are included.
@@ -82,6 +82,10 @@ To override them, set only the options you need in the resource project's
 {
   "tooliumResources.resourcePaths": ["acceptance/resources/language"],
   "tooliumResources.configurationPaths": ["acceptance/settings"],
+  "tooliumResources.configurationExcludePatterns": [
+    "**/private.json", "**/private-properties.json",
+    "**/*-private.json", "**/*-private-properties.json"
+  ],
   "tooliumResources.tooliumPaths": ["acceptance/settings"],
   "tooliumResources.poeditorPaths": ["acceptance/resources/poeditor"],
   "tooliumResources.poeditorSearchType": "exact",
@@ -103,8 +107,9 @@ The option names below all use the `tooliumResources.` prefix.
 | Option | Default | Purpose |
 | --- | --- | --- |
 | `resourcePaths` | `["acceptance/resources/language"]` | LANG navigation and completion: recursively search `.yaml` and `.yml` files. Also identifies the YAML files eligible for usage navigation and Find All References. |
-| `configurationPaths` | `["acceptance/settings"]` | CONF navigation and completion: recursively search public JSON configuration files. |
-| `baseConfigurationFiles` | `["global-properties.json", "common-properties.json"]` | CONF base filenames, ordered before public environment files when returning definitions. Private filenames are always excluded. |
+| `configurationPaths` | `["acceptance/settings"]` | CONF navigation and completion: recursively search eligible JSON configuration files. |
+| `configurationExcludePatterns` | `["**/private.json", "**/private-properties.json", "**/*-private.json", "**/*-private-properties.json"]` | Case-insensitive CONF exclusion globs, applied before reading files. `[]` disables exclusions. |
+| `baseConfigurationFiles` | `["global-properties.json", "common-properties.json"]` | CONF base filenames, ordered before environment files. Configured exclusion patterns take precedence. |
 | `poeditorPaths` | `["acceptance/resources/poeditor"]` | POE navigation: recursively search JSON files containing arrays of terms. |
 | `tooliumPaths` | `["acceptance/settings"]` | TOOLIUM navigation: check only `toolium.cfg` and `local-toolium.cfg` directly inside each directory. |
 | `filePath` | `"acceptance/resources"` | Base directory for FILE and FILE_UTF8 targets; resolve the exact file without a recursive search. |
@@ -134,7 +139,7 @@ The meaning of an empty value depends on the option:
 | `"tooliumResources.referencePaths": [""]` | Search Python and feature files recursively from the workspace root. |
 | `"tooliumResources.resourcePaths": []` | Disable LANG resource discovery and completion, and usage searches from YAML keys. |
 | `"tooliumResources.referencePaths": []` | Disable both usage navigation and Find All References; LANG resource navigation and completion remain available. |
-| `"tooliumResources.baseConfigurationFiles": []` | Remove base-file classification; public `*-properties.json` environment files are still searched. |
+| `"tooliumResources.baseConfigurationFiles": []` | Remove base-file classification; eligible `*-properties.json` environment files are still searched. |
 | `"tooliumResources.poeditorPrefixes": []` | Match the unprefixed POE identifier only. |
 | `"tooliumResources.filePath": ""` | Resolve FILE and FILE_UTF8 targets from the workspace root. |
 | `"tooliumResources.base64Path": ""` | Resolve BASE64 targets from the workspace root. |
@@ -163,10 +168,10 @@ selection. Missing or dynamic segments retain the deepest existing parent fallba
 `[CONF:qa_openai.api_version]` navigates to the `api_version` key inside the
 `qa_openai` JSON object. By default, the extension searches `acceptance/settings`.
 
-- Configured base filenames and public `*-properties.json` environment files are searched.
+- Configured base filenames and eligible `*-properties.json` environment files are searched.
 - `*-private-properties.json`, `*-private.json`, `private-properties.json`, and
-  `private.json` are always excluded by filename before their contents are opened,
-  even if listed as base files. The check is case-insensitive.
+  `private.json` are excluded by default before their contents are opened,
+  even if listed as base files. Customize `configurationExcludePatterns` to change this.
 - If the key exists in multiple files, all destinations with the deepest resolved
   path are offered in a selector, with base files ordered first.
 - Dynamic or missing segments stop at the last resolved parent, as for LANG.
@@ -176,7 +181,7 @@ selection. Missing or dynamic segments retain the deepest existing parent fallba
   Invalid or out-of-range indices stop at the last resolved parent.
 - Navigation does not select an active environment, merge configurations, or compute
   an effective value. If a key exists only in excluded files, no destination for
-  that key is returned; a matching parent in a public file may still be offered.
+  that key is returned; a matching parent in an included file may still be offered.
 
 ## POE navigation
 
@@ -305,19 +310,19 @@ and the workflow. Ensure the intended release commit is on `main` and its Action
 build succeeds. Actions must be enabled for the repository, with repository or
 organization policies allowing the release job to write repository contents.
 
-For the current `0.8.0` version, create and push a tag on that commit:
+For the first public version, create and push the `v1.0.0` tag on that commit:
 
 ```sh
 git switch main
 git pull --ff-only
-git tag -a v0.8.0 -m "Release v0.8.0"
-git push origin v0.8.0
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin v1.0.0
 ```
 
 Run these commands with a clean working tree. Tags identify committed code;
 uncommitted local changes are not included. The tag must not already exist.
 Then follow the tag's run in **Actions**. On success, the VSIX is available under
-**Releases → v0.8.0 → Assets**. The workflow creates the release; do not create a
+**Releases → v1.0.0 → Assets**. The workflow creates the release; do not create a
 release manually for the same tag beforehand.
 
 For subsequent releases, update the version and lockfile without creating a tag:
@@ -326,14 +331,26 @@ For subsequent releases, update the version and lockfile without creating a tag:
 npm version patch --no-git-tag-version
 ```
 
-This changes `0.8.0` to `0.8.1`. Review, commit, and push the version changes along
-with the release's code, then create and push the matching `v0.8.1` tag. Use
+This changes `1.0.0` to `1.0.1`. Review, commit, and push the version changes along
+with the release's code, then create and push the matching `v1.0.1` tag. Use
 `minor` or `major` instead of `patch` when appropriate.
 
 GitHub Release creation is documented in the
 [GitHub CLI manual](https://cli.github.com/manual/gh_release_create).
-This workflow distributes VSIX files through GitHub; it does not publish to the
-Visual Studio Marketplace.
+This workflow distributes VSIX files through GitHub Releases.
+
+## Publish to Visual Studio Marketplace
+
+After pushing the release tag and reviewing the GitHub Release VSIX, open
+**Actions → Publish to Visual Studio Marketplace → Run workflow**. Select
+`main` as the workflow branch and enter the release tag, such as `v1.0.0`.
+The workflow tests and packages the tagged source, then publishes that VSIX.
+
+In the Marketplace publisher `manon42bcn`, the Trusted Publishing policy
+uses GitHub owner `manon42bcn`, repository `toolium-resource-navigator`,
+workflow `publish.yml`, and an empty environment. The publish job exchanges
+its GitHub Actions OIDC token for a short-lived Marketplace credential.
+See [VS Code's Trusted Publishing guide](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#publish-with-github-actions-and-trusted-publishing).
 
 ## Initial scope
 
@@ -372,6 +389,9 @@ In Python and feature files, hover over any closed supported placeholder and cli
 editor context menu. You can assign your own keyboard shortcut to
 `tooliumResources.openResource` in Keyboard Shortcuts.
 
+Recognized placeholders in the visible editor have a dotted underline. Use the
+**Open resource** link in the hover to navigate.
+
 The hover only recognizes the placeholder: it does not discover, open or parse
 resource files. Resolution starts when the command runs. A single destination
 opens immediately; multiple destinations appear in a file/line picker. LANG/CONF
@@ -388,7 +408,7 @@ Reverse navigation and Find All References from resource keys remain available.
 
 Find All References and reverse Go to Definition also support:
 
-- **CONF:** select a property key in a public configuration JSON file to find exact
+- **CONF:** select a property key in an included configuration JSON file to find exact
   and descendant CONF paths. Enclosing array indices are included; equivalent
   negative array indices are recognized. Values are not search entry points.
 - **POE:** select the string identifier value of `poeditorKeyField` (default
@@ -402,8 +422,39 @@ Find All References and reverse Go to Definition also support:
   are not search entry points.
 
 Each resource must be inside its configured resource directories. CONF retains
-its public-filename restrictions; TOOLIUM checks only the two filenames directly
+its configured filename exclusions; TOOLIUM checks only the two filenames directly
 inside `tooliumPaths`. JSON must be valid strict JSON. Searches use current unsaved
 contents and the same `referencePaths`, workspace boundary, cancellation behavior
 and `enableUsageNavigation` setting as LANG. Only closed, single-line placeholders
 are included. FILE/FILE_UTF8/BASE64 reverse navigation is not provided.
+
+
+### Configurable CONF exclusions
+
+`configurationExcludePatterns` replaces the default exclusions. Globs are matched
+case-insensitively against paths relative to the source workspace folder, including
+hidden directories. A pattern without `/`, such as `*private-properties.json`,
+matches filenames at any depth. A path pattern such as `acceptance/settings/archive/**`
+only excludes that workspace-relative subtree. Patterns are exclusions, not regexes;
+leading `!` does not re-include files.
+
+```json
+{
+  "tooliumResources.configurationExcludePatterns": [
+    "**/private.json", "**/private-properties.json",
+    "**/*-private.json", "**/*-private-properties.json",
+    "acceptance/settings/archive/**"
+  ]
+}
+```
+
+Use `[]` to attempt reading all eligible CONF files, including private filenames.
+Eligibility still requires a configured base filename or a `*-properties.json`
+filename under `configurationPaths`: disabling exclusions does not include arbitrary
+JSON filenames. To include `private.json`, for example, also list it in
+`baseConfigurationFiles`.
+
+The extension attempts strict JSON parsing without detecting or decrypting encryption.
+Valid JSON with encrypted string values remains navigable by key. Invalid JSON and
+whole-file ciphertext are skipped. No resource content is sent to an external service.
+The same exclusions apply to forward navigation, completion and reverse CONF searches.

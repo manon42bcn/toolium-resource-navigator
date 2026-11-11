@@ -29,6 +29,10 @@ export function resolveYaml(source: string, path: string[]): Match | undefined {
   return match;
 }
 
+export function placeholderMatches(line: string) {
+  return line.matchAll(/\[(LANG|CONF|POE|FILE|FILE_UTF8|BASE64|TOOLIUM):([^\]\r\n]+)\]/g);
+}
+
 /**
  * Finds the LANG, CONF, POE, FILE, FILE_UTF8, BASE64, or TOOLIUM reference containing the cursor on a single source line.
  * Each reference is checked independently, including concatenated references.
@@ -40,7 +44,7 @@ export function resolveYaml(source: string, path: string[]): Match | undefined {
  */
 export function referenceAt(line: string, character: number):
   { kind: 'LANG' | 'CONF' | 'POE' | 'FILE' | 'FILE_UTF8' | 'BASE64' | 'TOOLIUM'; value: string; path: string[]; start: number; end: number } | undefined {
-  for (const match of line.matchAll(/\[(LANG|CONF|POE|FILE|FILE_UTF8|BASE64|TOOLIUM):([^\]\r\n]+)\]/g)) {
+  for (const match of placeholderMatches(line)) {
     const start = match.index!;
     const end = start + match[0].length;
     if (character >= start && character < end) {
@@ -74,13 +78,12 @@ export function resolveJson(source: string, path: string[]): Match | undefined {
 
 /**
  * Classifies a configuration file by name before any content is opened.
- * Private filenames are always rejected, including explicitly configured bases.
- * Base names are configurable; other public *-properties.json files are environments.
+ * Exclusions are applied separately before opening files.
+ * Base names are configurable; other *-properties.json files are environments.
  */
 export function configurationFileKind(name: string, baseFiles: string[]):
   'base' | 'environment' | undefined {
   const lower = name.toLowerCase();
-  if (/(?:^|-)private(?:-properties)?\.json$/.test(lower)) return undefined;
   if (baseFiles.includes(name)) return 'base';
   return lower.endsWith('-properties.json') ? 'environment' : undefined;
 }

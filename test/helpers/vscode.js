@@ -28,6 +28,18 @@ function createVscode(overrides = {}) {
     CompletionItemKind: { Property: 9, Value: 12 },
     commands: { registerCommand: disposable },
     ...overrides,
+    window: {
+      visibleTextEditors: [],
+      createTextEditorDecorationType: disposable,
+      onDidChangeTextEditorVisibleRanges: disposable,
+      onDidChangeVisibleTextEditors: disposable,
+      ...overrides.window
+    },
+    workspace: {
+      onDidChangeTextDocument: disposable,
+      onDidChangeWorkspaceFolders: disposable,
+      ...overrides.workspace
+    },
     languages: {
       registerDefinitionProvider: disposable,
       registerHoverProvider: disposable,

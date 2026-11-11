@@ -1,0 +1,94 @@
+name: Publish to Visual Studio Marketplace
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to publish (for example, v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: marketplace-publish
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Test and package release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Validate release tag
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo 'Expected a release tag in vMAJOR.MINOR.PATCH format.'
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ inputs.release_tag }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Verify release metadata
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          node <<'NODE'
+          const manifest = require('./package.json');
+          const lock = require('./package-lock.json');
+          if (process.env.RELEASE_TAG !== `v${manifest.version}`
+              || lock.version !== manifest.version
+              || lock.packages[''].version !== manifest.version
+              || manifest.publisher !== 'manon42bcn') {
+            throw new Error('The tag, manifest, lockfile and Marketplace publisher must agree.');
+          }
+          NODE
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run package
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: marketplace-vsix
+          path: dist/*.vsix
+          if-no-files-found: error
+
+  publish:
+    name: Publish tested VSIX
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ inputs.release_tag }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: marketplace-vsix
+          path: dist
+
+      - run: npm exec -- vsce publish --oidc --packagePath dist/*.vsix

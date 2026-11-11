@@ -63,3 +63,16 @@ test('TOOLIUM reverse searches explicit options or a section and respects colon 
   assert.equal((await fixture('acceptance/settings/toolium.cfg', text, 'value', uses).run()).length, 0);
   assert.equal((await fixture('acceptance/settings/nested/toolium.cfg', text, 'mode', uses).run()).length, 0);
 });
+
+test('reverse CONF exclusions can be replaced or disabled before source content is read', async () => {
+  const file = 'acceptance/settings/dev-private-properties.json';
+  const text = '{"service":{"token":"encoded-or-encrypted-value"}}';
+  const uses = '[CONF:service.token]';
+  assert.equal((await fixture(file, text, 'token', uses, { configurationExcludePatterns: [] }).run()).length, 2);
+  assert.equal((await fixture(file, text, 'token', uses,
+    { configurationExcludePatterns: ['other.json'] }).run()).length, 2);
+  const f = fixture('acceptance/settings/common-properties.json', text, 'token', uses,
+    { configurationExcludePatterns: ['**/common-properties.json'] });
+  assert.deepEqual(await f.run(), []);
+  assert.equal(f.reads(), 0);
+});
