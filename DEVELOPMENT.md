@@ -58,39 +58,37 @@ by the version in both `package.json` and `package-lock.json`. Release assets
 remain available independently of the Actions artifact's retention period.
 The workflow uses GitHub's built-in token; no Marketplace token is needed.
 
-### Create a release
+### Automatic releases from dev to main
 
-First commit and push the project files, including all new source files, tests,
-and the workflow. Ensure the intended release commit is on `main` and its Actions
-build succeeds. Actions must be enabled for the repository, with repository or
-organization policies allowing the release job to write repository contents.
+For the initial setup, merge the automation through `dev` into `main` with
+the current stable version. The workflow skips a stable version already
+tagged in the merged history. Then run **Build and release** from `main` with
+**Open the next development version on dev from the current release** checked.
+This merges the current stable `main` into `dev` and opens `1.0.3-dev.0` there.
 
-Update the version and lockfile in the release PR. For a patch release:
+Merging a PR from this repository's `dev` into `main` closes the development
+version in the manifest, lockfile, and changelog. The workflow tests and
+packages the stable commit, pushes it to `main` with its version tag, and
+creates the GitHub Release with the VSIX and changelog notes. It then merges
+the tagged commit into `dev` and opens the next patch version as `-dev.0`
+with an Unreleased changelog section.
 
-```sh
-npm version patch --no-git-tag-version
-```
+Add release notes to the Unreleased section in `dev`. To release a minor
+or major version, set the desired development version in the manifest and
+lockfile on `dev`, for example `npm version 1.1.0-dev.0 --no-git-tag-version`.
+Use a merge commit for the release PR so both branches retain their shared
+history.
 
-Use `minor` or `major` when appropriate. Once the PR is merged and CI is green,
-tag the release commit on `main`. For example, for version `1.0.1`:
-
-```sh
-git switch main
-git pull --ff-only
-git tag -a v1.0.1 -m "Release v1.0.1"
-git push origin v1.0.1
-```
-
-After the tag workflow succeeds, download the VSIX from the corresponding
-GitHub Release assets.
-
-GitHub Release creation is documented in the
-[GitHub CLI manual](https://cli.github.com/manual/gh_release_create).
-This workflow distributes VSIX files through GitHub Releases.
+The branch and tag rules must allow the workflow token to write `main` and
+`dev` and create version tags. Wait for the release to finish before merging
+another PR to `main`. Rerun a failed workflow to finish a tagged release.
+If syncing the stable tag into `dev` produces conflicts, merge the tag into
+`dev` and resolve them, keeping the stable changelog entry and any subsequent
+development changes, then rerun the workflow.
 
 ## Publish to Visual Studio Marketplace
 
-After pushing the release tag and reviewing the GitHub Release VSIX, open
+After reviewing the GitHub Release VSIX, open
 **Actions → Publish to Visual Studio Marketplace → Run workflow**. Select
 `main` as the workflow branch and enter the release tag, such as `v1.0.1`.
 The workflow tests and packages the tagged source, then publishes that VSIX.

@@ -3,10 +3,16 @@ name: Build and release
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, closed]
   push:
     branches: [main]
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      bootstrap_dev:
+        description: 'Open the next development version on dev from the current release'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -14,6 +20,10 @@ permissions:
 jobs:
   build:
     name: Test and package
+    if: >-
+      github.event.action != 'closed' ||
+      (github.event.pull_request.merged && github.head_ref == 'dev' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -73,3 +83,36 @@ jobs:
         run: >-
           gh release create "$RELEASE_TAG" dist/*.vsix
           --verify-tag --generate-notes --title "$RELEASE_TAG"
+
+  release-main:
+    name: Release from main
+    if: >-
+      (github.event_name == 'pull_request' && github.event.action == 'closed' &&
+       github.event.pull_request.merged && github.head_ref == 'dev' &&
+       github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
+       inputs.bootstrap_dev)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    concurrency:
+      group: release-main
+      queue: max
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Release and start the next development version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_MODE: ${{ inputs.bootstrap_dev && 'bootstrap' || 'release' }}
+        run: bash scripts/release-main.sh "$RELEASE_MODE"
