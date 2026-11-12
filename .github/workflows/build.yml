@@ -2,7 +2,7 @@ name: Build and release
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
     types: [opened, synchronize, reopened, closed]
   push:
     branches: [main]
@@ -22,7 +22,7 @@ jobs:
     name: Test and package
     if: >-
       github.event.action != 'closed' ||
-      (github.event.pull_request.merged && github.head_ref == 'dev' &&
+      (github.event.pull_request.merged && github.base_ref == 'main' && github.head_ref == 'dev' &&
        github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -88,7 +88,7 @@ jobs:
     name: Release from main
     if: >-
       (github.event_name == 'pull_request' && github.event.action == 'closed' &&
-       github.event.pull_request.merged && github.head_ref == 'dev' &&
+       github.event.pull_request.merged && github.base_ref == 'main' && github.head_ref == 'dev' &&
        github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
        inputs.bootstrap_dev)

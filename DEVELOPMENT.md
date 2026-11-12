@@ -46,7 +46,7 @@ and VSIX files do not. A clean checkout is built with `npm ci`, `npm test`, and
 ## GitHub Actions and releases
 
 The workflow in `.github/workflows/build.yml` runs on pull requests targeting
-`main`, pushes to `main`, version-tag pushes (`v*`), and manual runs from Actions.
+`main` or `dev`, pushes to `main`, version-tag pushes (`v*`), and manual runs from Actions.
 It selects Node.js from `.nvmrc`, installs dependencies with `npm ci`, runs the
 tests, packages the extension, and saves a `vsix` artifact for 14 days.
 Download it from **Actions → workflow run → Artifacts → vsix** and extract the
