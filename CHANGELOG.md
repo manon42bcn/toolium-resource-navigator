@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.2 (Unreleased)
+## 1.0.2
 
 - Fix the **Open resource** hover link on Windows and for paths containing spaces, `#`, or `%` ([#9](https://github.com/manon42bcn/toolium-resource-navigator/issues/9)).
 - Add the optional `tooliumResources.enablePlaceholderDefinitionNavigation` setting to open resources from Python and Gherkin placeholders with Cmd/Ctrl+click or F12. Disabled by default.
