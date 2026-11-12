@@ -63,7 +63,10 @@ jobs:
 
   release:
     name: Publish GitHub Release
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    # App-created tags are published by release-main.
+    if: >-
+      github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') &&
+      github.actor != 'myauto-release[bot]'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -101,9 +104,18 @@ jobs:
       group: release-main
       queue: max
     steps:
+      - name: Create MyAuto Release installation token
+        id: release-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          token: ${{ steps.release-token.outputs.token }}
 
       - uses: actions/setup-node@v7
         with:
