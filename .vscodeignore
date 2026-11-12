@@ -2,6 +2,8 @@
 .github/**
 src/**
 test/**
+scripts/release-main.sh
+scripts/release-changelog.cjs
 tsconfig.json
 .gitignore
 .nvmrc
