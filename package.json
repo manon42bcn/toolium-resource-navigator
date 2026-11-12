@@ -134,6 +134,11 @@
             "type": "string"
           }
         },
+        "tooliumResources.enablePlaceholderDefinitionNavigation": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable Go to Definition (Cmd/Ctrl+click or F12) from Toolium placeholders in Python and feature files to their resources."
+        },
         "tooliumResources.enableUsageNavigation": {
           "type": "boolean",
           "default": true,
