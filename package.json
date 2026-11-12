@@ -2,7 +2,7 @@
   "name": "toolium-resource-navigator",
   "displayName": "Toolium Resource Navigator",
   "description": "Navigate Toolium resource placeholders and autocomplete LANG/CONF keys.",
-  "version": "1.0.2-dev.0",
+  "version": "1.0.2",
   "license": "Apache-2.0",
   "publisher": "manon42bcn",
   "engines": {
