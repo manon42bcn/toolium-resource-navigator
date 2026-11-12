@@ -98,14 +98,23 @@ export function activate(context: vscode.ExtensionContext): void {
   registerPlaceholderDecorations(context, selector);
   context.subscriptions.push(
     vscode.commands.registerCommand('tooliumResources.openResource', openResource),
+    vscode.languages.registerDefinitionProvider(selector, {
+      provideDefinition(document, position, token) {
+        if (!vscode.workspace.getConfiguration('tooliumResources', document.uri)
+          .get<boolean>('enablePlaceholderDefinitionNavigation', false)) return;
+        return resourceProvider.provideDefinition(document, position, token);
+      }
+    }),
     vscode.languages.registerHoverProvider(selector, {
       provideHover(document, position) {
         const ref = referenceAt(document.lineAt(position.line).text, position.character);
         if (!ref || !vscode.workspace.getWorkspaceFolder(document.uri)) return;
-        const args = encodeURIComponent(JSON.stringify([{
+        const request = JSON.stringify([{
           uri: document.uri.toString(), line: position.line, character: ref.start,
           version: document.version, text: document.lineAt(position.line).text.slice(ref.start, ref.end)
-        }]));
+        }]);
+        // VS Code can decode the command query again before parsing the JSON.
+        const args = encodeURIComponent(request.replace(/%/g, '\\u0025'));
         const markdown = new vscode.MarkdownString(
           `[Open resource](command:tooliumResources.openResource?${args})`);
         markdown.isTrusted = { enabledCommands: ['tooliumResources.openResource'] };

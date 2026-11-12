@@ -102,6 +102,7 @@ The option names below all use the `tooliumResources.` prefix.
 | `poeditorKeyField` | `"reference"` | POEditor object field containing the identifier to match. |
 | `poeditorPrefixes` | `[]` | Ordered prefixes tried before the unprefixed POE identifier. The first prefix with matches across all files wins. |
 | `enableUsageNavigation` | `true` | Enable Go to Definition from resource keys/identifiers to their usages. Does not disable Find All References. |
+| `enablePlaceholderDefinitionNavigation` | `false` | Enable Go to Definition from placeholders in Python and feature files to their resources. |
 | `referencePaths` | `["acceptance/common", "acceptance/features"]` | Recursively search `.py` and `.feature` files for literal LANG, CONF, POE and TOOLIUM usages. |
 
 Configured directories are relative to the workspace folder containing the source
@@ -296,8 +297,9 @@ resource files. Resolution starts when the command runs. A single destination
 opens immediately; multiple destinations appear in a file/line picker. LANG/CONF
 retain their deepest-parent fallback for dynamic or missing segments.
 
-Placeholder navigation no longer registers a Go to Definition provider, so
-Cmd/Ctrl+click and F12 do not invoke Toolium from Python/feature placeholders.
+Set `"tooliumResources.enablePlaceholderDefinitionNavigation": true` to enable
+Cmd/Ctrl+click and F12 from placeholders in Python and feature files. VS Code
+can show destinations from Toolium alongside results from other extensions.
 The direct command does not consult other extensions' definition providers.
 Other extensions can still provide their own navigation or affect editor performance.
 Reverse navigation and Find All References from resource keys remain available.
