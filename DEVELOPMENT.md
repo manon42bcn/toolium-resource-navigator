@@ -79,8 +79,12 @@ lockfile on `dev`, for example `npm version 1.1.0-dev.0 --no-git-tag-version`.
 Use a merge commit for the release PR so both branches retain their shared
 history.
 
-The branch and tag rules must allow the workflow token to write `main` and
-`dev` and create version tags. Wait for the release to finish before merging
+Install MyAuto Release on this repository with Contents write permission.
+Store its client ID in the Actions variable `RELEASE_APP_CLIENT_ID` and its
+private key in the Actions secret `RELEASE_APP_PRIVATE_KEY`. Grant the app
+direct-push bypass in the rulesets that protect `main`, `dev`, and version tags.
+The workflow uses the app's installation token for Git operations and the
+built-in token to publish the GitHub Release. Wait for the release to finish before merging
 another PR to `main`. Rerun a failed workflow to finish a tagged release.
 If syncing the stable tag into `dev` produces conflicts, merge the tag into
 `dev` and resolve them, keeping the stable changelog entry and any subsequent
