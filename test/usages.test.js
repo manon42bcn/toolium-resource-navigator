@@ -69,14 +69,23 @@ test('branch searches include exact and descendant closed placeholders with full
   assert.equal(usageOffsets(text, ['screen']).length, 6);
 });
 
-test('branch searches require closed single-line placeholders and treat keys literally', () => {
+test('branch searches keep references on one line and treat keys literally', () => {
   const text = '[LANG:screen.alerts.missing\n[LANG:screen.alerts.other] '
     + '[LANG:screen.alerts.[CONTEXT:key]] [LANG:screen.alerts.unfinished';
   assert.deepEqual(usageOffsets(text, ['screen', 'alerts'])
-    .map(({ start, end }) => text.slice(start, end)), ['[LANG:screen.alerts.other]']);
-  assert.equal(usageOffsets('[LANG:screen.alerts.missing\n]', ['screen', 'alerts']).length, 0);
+    .map(({ start, end }) => text.slice(start, end)),
+  ['[LANG:screen.alerts.missing', '[LANG:screen.alerts.other]', '[LANG:screen.alerts.unfinished']);
+  const split = '[LANG:screen.alerts.missing\n]';
+  assert.deepEqual(usageOffsets(split, ['screen', 'alerts']), [{ start: 0, end: split.indexOf('\n') }]);
   assert.equal(usageOffsets('[LANG:a+b.child] [LANG:aaab.child]', ['a+b']).length, 1);
   assert.deepEqual(usageOffsets('[LANG:a.b]', []), []);
+});
+
+test('branch searches include zero, one, or two brackets in the result ranges', () => {
+  const text = 'Given "LANG:screen.alerts"\nAnd [LANG:screen.alerts.other] or LANG:screen.alerts.missing::en] or [LANG:screen.alerts.open.';
+  assert.deepEqual(usageOffsets(text, ['screen', 'alerts'])
+    .map(({ start, end }) => text.slice(start, end)),
+  ['LANG:screen.alerts', '[LANG:screen.alerts.other]', 'LANG:screen.alerts.missing::en]', '[LANG:screen.alerts.open']);
 });
 
 test('Find All References and usage navigation search the branch selected in YAML', async () => {

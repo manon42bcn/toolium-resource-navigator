@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { isMap, isScalar, parseDocument } from 'yaml';
-import { referenceAt } from './resolver';
+import { placeholderMatches } from './resolver';
 import { configuredBases } from './paths';
 import { resourceUsageMatcher, type UsageMatcher } from './usageTargets';
 
@@ -23,18 +23,19 @@ export function yamlKeyAt(text: string, offset: number): string[] | undefined {
   return walk(doc.contents, []);
 }
 
-/** Closed LANG uses of a key or its descendants, compared by literal path segments. */
+/** Matches a LANG key and its descendants by literal path segments. */
+function languageUsageMatcher(path: string[]): UsageMatcher {
+  return ref => ref.kind === 'LANG' && path.every((key, i) => key === ref.path[i]);
+}
+
 export function usageOffsets(text: string, path: string[]): { start: number; end: number }[] {
-  if (!path.length) return [];
-  return matchingUsageOffsets(text, ref => ref.kind === 'LANG' && ref.path.length >= path.length
-    && path.every((key, i) => key === ref.path[i]));
+  return path.length ? matchingUsageOffsets(text, languageUsageMatcher(path)) : [];
 }
 
 export function matchingUsageOffsets(text: string, matcher: UsageMatcher): { start: number; end: number }[] {
   const results: { start: number; end: number }[] = [];
-  for (const match of text.matchAll(/\[(?:LANG|CONF|POE|TOOLIUM):[^\[\]\r\n]+\]/g)) {
-    const ref = referenceAt(match[0], 0);
-    if (ref && matcher(ref)) results.push({ start: match.index!, end: match.index! + match[0].length });
+  for (const ref of placeholderMatches(text, true)) {
+    if (matcher(ref)) results.push({ start: ref.start, end: ref.end });
   }
   return results;
 }
@@ -57,8 +58,7 @@ export async function findUsages(document: vscode.TextDocument, position: vscode
     if (!resourceBases.some(base => within(document.uri, base))) return [];
     const path = yamlKeyAt(document.getText(), document.offsetAt(position));
     if (!path) return [];
-    matcher = ref => ref.kind === 'LANG' && ref.path.length >= path.length
-      && path.every((key, i) => key === ref.path[i]);
+    matcher = languageUsageMatcher(path);
   } else {
     matcher = resourceUsageMatcher(document, document.offsetAt(position), folder.uri, config);
   }

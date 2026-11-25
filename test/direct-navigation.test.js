@@ -68,7 +68,7 @@ test('placeholder Go to Definition requires opt-in and uses the resource resolve
 });
 
 test('direct command opens a single result and selects among multiple results', async () => {
-  const single = fixture();
+  const single = fixture('LANG:screen.title');
   await single.command();
   assert.equal(single.opened[0].target.path, '/repo/0.yml');
   const multiple = fixture(undefined, 2);
