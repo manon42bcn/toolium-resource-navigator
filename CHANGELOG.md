@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0 (Unreleased)
+
+- Support bracketed and bare references for all supported resource types in Python and Gherkin. Reverse searches for LANG, CONF, POE, and TOOLIUM also find references with either bracket missing.
+
 ## 1.0.2
 
 - Fix the **Open resource** hover link on Windows and for paths containing spaces, `#`, or `%` ([#9](https://github.com/manon42bcn/toolium-resource-navigator/issues/9)).

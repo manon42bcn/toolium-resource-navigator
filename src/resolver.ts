@@ -29,8 +29,42 @@ export function resolveYaml(source: string, path: string[]): Match | undefined {
   return match;
 }
 
-export function placeholderMatches(line: string) {
-  return line.matchAll(/\[(LANG|CONF|POE|FILE|FILE_UTF8|BASE64|TOOLIUM):([^\]\r\n]+)\]/g);
+const resourceKinds = ['LANG', 'CONF', 'POE', 'FILE', 'FILE_UTF8', 'BASE64', 'TOOLIUM'] as const;
+type ResourceKind = typeof resourceKinds[number];
+const resourcePrefix = `(${resourceKinds.join('|')}):`;
+const bareKeyCharacters = '\\p{L}\\p{M}\\p{N}_';
+const bareSegment = `[${bareKeyCharacters}-]+`;
+const bareValue = `(${bareSegment}(?:(?:::?|[./])${bareSegment})*)`;
+
+function placeholderPattern(usageSearch: boolean): RegExp {
+  // Usage searches skip bracketed values containing nested placeholders.
+  const bracketedValue = usageSearch ? '[^\\[\\]\\r\\n]+' : '[^\\]\\r\\n]+';
+  const bracketed = `\\[${resourcePrefix}(${bracketedValue})\\]`;
+  const tokenStart = `(?<![${bareKeyCharacters}\\[.:/-])`;
+  // Only reverse searches include incomplete bracket pairs in the result range.
+  const opening = usageSearch ? `(?:\\[|${tokenStart})` : tokenStart;
+  const closing = usageSearch ? '\\]?' : '(?!\\])';
+  // A period may end a sentence. Reject it as a boundary when followed by more token content.
+  const tokenEnd = `(?![${bareKeyCharacters}:/<%+\\\\\\[-]|\\.[^\\s"'\x60,;!?)}])`;
+  const bare = `${opening}${resourcePrefix}${bareValue}${tokenEnd}${closing}`;
+  return new RegExp(`${bracketed}|${bare}`, 'gu');
+}
+
+const navigationPattern = placeholderPattern(false);
+const usagePattern = placeholderPattern(true);
+
+export function* placeholderMatches(text: string, usageSearch = false) {
+  const pattern = usageSearch ? usagePattern : navigationPattern;
+  for (const match of text.matchAll(pattern)) {
+    const kind = (match[1] ?? match[3]) as ResourceKind;
+    const value = match[2] ?? match[4];
+    const start = match.index!;
+    const end = start + match[0].length;
+    const separator = kind === 'LANG' ? value.indexOf('::') : -1;
+    const path = separator < 0 ? value.split('.')
+      : [...value.slice(0, separator).split('.'), value.slice(separator + 2)];
+    yield { kind, value, path, start, end };
+  }
 }
 
 /**
@@ -42,18 +76,9 @@ export function placeholderMatches(line: string) {
  * @returns The literal reference value, dot-separated path segments and the reference's start (inclusive)
  * and end (exclusive) offsets, or undefined when the cursor is outside a reference.
  */
-export function referenceAt(line: string, character: number):
-  { kind: 'LANG' | 'CONF' | 'POE' | 'FILE' | 'FILE_UTF8' | 'BASE64' | 'TOOLIUM'; value: string; path: string[]; start: number; end: number } | undefined {
-  for (const match of placeholderMatches(line)) {
-    const start = match.index!;
-    const end = start + match[0].length;
-    if (character >= start && character < end) {
-      // Explicit LANG languages are YAML child keys, not part of the resource key.
-      const separator = match[1] === 'LANG' ? match[2].indexOf('::') : -1;
-      const path = separator < 0 ? match[2].split('.')
-        : [...match[2].slice(0, separator).split('.'), match[2].slice(separator + 2)];
-      return { kind: match[1] as 'LANG' | 'CONF' | 'POE' | 'FILE' | 'FILE_UTF8' | 'BASE64' | 'TOOLIUM', value: match[2], path, start, end };
-    }
+export function referenceAt(line: string, character: number) {
+  for (const ref of placeholderMatches(line)) {
+    if (character >= ref.start && character < ref.end) return ref;
   }
   return undefined;
 }

@@ -276,18 +276,24 @@ keeping Find All References. Set `referencePaths` to `[]` to disable both search
 Place the cursor on the key, not its value. Matching uses the complete mapping
 path as a segment prefix. Selecting `screen.alerts` finds both `[LANG:screen.alerts]`
 and `[LANG:screen.alerts.missing]`, but not `[LANG:screen.alerts_extra]`.
-Only closed, single-line placeholders are included; explicit `::language`
-references are also recognized.
+Searches include single-line references with zero, one, or two brackets,
+including explicit `::language` references.
 Dynamic references, aliases, sequence entries and keys containing literal dots
 are not expanded. Multiple destinations follow VS Code's navigation settings.
 
 
 ## Direct resource navigation
 
-In Python and feature files, hover over any closed supported placeholder and click
+In Python and feature files, hover over a supported reference and click
 **Open resource**, or use **Toolium: Open Resource** from the Command Palette or
 editor context menu. You can assign your own keyboard shortcut to
 `tooliumResources.openResource` in Keyboard Shortcuts.
+
+All supported prefixes work with or without brackets, for example
+`LANG:var.foo`, `POE:bill:bill.check`, and `FILE:templates/invoice.txt`.
+Bare references accept letters, numbers, underscores and hyphens with dots,
+colons or slashes as separators. Use brackets for values containing spaces or
+dynamic segments.
 
 Recognized placeholders in the visible editor have a dotted underline. Use the
 **Open resource** link in the hover to navigate.
@@ -326,8 +332,8 @@ Each resource must be inside its configured resource directories. CONF retains
 its configured filename exclusions; TOOLIUM checks only the two filenames directly
 inside `tooliumPaths`. JSON must be valid strict JSON. Searches use current unsaved
 contents and the same `referencePaths`, workspace boundary, cancellation behavior
-and `enableUsageNavigation` setting as LANG. Only closed, single-line placeholders
-are included. FILE/FILE_UTF8/BASE64 reverse navigation is not provided.
+and `enableUsageNavigation` setting as LANG. Searches include single-line
+references with zero, one, or two brackets. FILE/FILE_UTF8/BASE64 reverse navigation is not provided.
 
 
 ### Configurable CONF exclusions
