@@ -14,9 +14,8 @@ export function registerPlaceholderDecorations(context: vscode.ExtensionContext,
         for (let line = visible.start.line; line <= visible.end.line && line < document.lineCount; line++) {
           if (scannedLines.has(line)) continue;
           scannedLines.add(line);
-          for (const match of placeholderMatches(document.lineAt(line).text)) {
-            const start = match.index!;
-            ranges.push(new vscode.Range(line, start, line, start + match[0].length));
+          for (const { start, end } of placeholderMatches(document.lineAt(line).text)) {
+            ranges.push(new vscode.Range(line, start, line, end));
           }
         }
       }
