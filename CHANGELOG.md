@@ -1,6 +1,8 @@
 # Changelog
 
-## 1.1.0 (Unreleased)
+## 1.1.1 (Unreleased)
+
+## 1.1.0
 
 - Support bracketed and bare references for all supported resource types in Python and Gherkin. Reverse searches for LANG, CONF, POE, and TOOLIUM also find references with either bracket missing.
 
